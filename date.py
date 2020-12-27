@@ -21,9 +21,14 @@ class Date:
             else:
                 joursRestantsMois = Date.NBJOURS_MOIS[date.mois] - date.jour
             if joursRestantsMois < jours:
+                # si on doit ajouter plus de jours que restants dans le mois,
+                # on passe au mois suivant
                 date.mois = (date.mois + 1) % 12
                 date.jour = 1
+                if date.mois == 0:
+                    date.annee += 1
             else:
+                # sinon on ajoute juste les jours
                 date.jour += jours
             jours -= joursRestantsMois + 1
         return date
