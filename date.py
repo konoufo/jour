@@ -1,6 +1,6 @@
 class Date:
     DATE_REFERENCE = "2020-12-23:19:30:00"
-    NOMJOUR_REFERENCE = "mercredi"
+    SEMAINE = ('mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'lundi', 'mardi')
     NBJOURS_MOIS = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 
     def __init__(self, date=None):
@@ -10,6 +10,7 @@ class Date:
         self.heure = date.heure if date is not None else 19  # 0..23
         self.minute = date.minute if date is not None else 30  # 0..59
         self.seconde = date.seconde if date is not None else 00  # 0..59
+        self.nomJour = date.nomJour if date is not None else "mercredi"
 
     def plus(self, jours=0, heures=0, minutes=0, secondes=0):
         """Ajoute une durée à la date courante et retourne une nouvelle date résultante"""
@@ -85,8 +86,39 @@ class Date:
                 # sinon on ajoute juste les jours
                 date.jour += jours
             jours -= joursRestantsMois + 1
+        date._evalueNomJour()
         return date
     
+    def estBissextile(self):
+        """Retourne si cette date est dans une année bissextile"""
+        return Date.estAnneeBissextile(self.annee)
+    
+    @staticmethod
+    def estAnneeBissextile(annee):
+        return annee % 4 == 0
+
+    def _evalueNomJour(self):
+        orig = Date.creeDateAvecStr(Date.DATE_REFERENCE)
+        jours = (self.annee - orig.annee) * 365
+        if self.annee > orig.annee:
+            jours += (self.annee - orig.annee - 1) // 4  # supplément années bissextiles
+            if Date.estAnneeBissextile(self.annee) and self.mois > 1:
+                jours += 1
+        else:
+            jours -= abs(self.annee - orig.annee + 1) // 4
+            if Date.estAnneeBissextile(self.annee) and self.mois <= 1:
+                jours -= 1
+        if self.mois > orig.mois:
+            jours += sum(Date.NBJOURS_MOIS[orig.mois:self.mois]) - orig.jour + self.jour
+        else:
+            jours -= sum(Date.NBJOURS_MOIS[self.mois:orig.mois]) + orig.jour - self.jour
+            print('JOURS:', jours)
+        self.nomJour = Date.SEMAINE[jours % 7]
+        return self.nomJour
+
+    def __str__(self):
+        return '{0.annee}-{1}-{0.jour}:{0.heure}:{0.minute}:{0.seconde}'.format(self, self.mois + 1)
+
     @staticmethod
     def simplifieDuree(jours=0, heures=0, minutes=0, secondes=0):
         """Retourne une durée simplifiée dans les bornes de chaque unité de temps"""
@@ -98,6 +130,26 @@ class Date:
         heures = heures % 24
         return jours, heures, minutes, secondes
 
-    def estBissextile(self):
-        """Retourne si cette date est dans une année bissextile"""
-        return abs(self.annee - 2020) % 4 > 0  # puisque 2020 est bissextile
+    @staticmethod
+    def creeDateAvecStr(strDate):
+        """Crée et retourne un objet Date si le format est respecté"""
+        annee, mois, jour, heure, minute, seconde = None, None, None, None, None, None
+        parties = strDate.split(':')
+        partieDate = parties[0]
+        try:
+            annee = int(partieDate[:4])
+            mois = int(partieDate[5:7]) - 1
+            jour = int(partieDate[8:10])
+        except (ValueError, IndexError):
+            raise ValueError('Le format de date n\'est pas respecté.')
+        date = Date()
+        date.annee, date.mois, date.jour = annee, mois, jour
+        try:
+            heure = int(parties[1])
+            minute = int(parties[2])
+            seconde = int(parties[3])
+        except (ValueError, IndexError):
+            pass
+        else:
+            date.heure, date.minute, date.seconde = heure, minute, seconde
+        return date
